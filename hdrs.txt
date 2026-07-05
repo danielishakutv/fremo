@@ -1,0 +1,11 @@
+HTTP/1.1 200 OK
+vary: RSC, Next-Router-State-Tree, Next-Router-Prefetch
+accept-ranges: bytes, bytes
+cache-control: no-store
+content-disposition: attachment; filename="Killhouse.mkv"
+content-length: 766580977
+content-type: video/x-matroska; charset=binary
+Date: Sun, 28 Jun 2026 15:35:46 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
