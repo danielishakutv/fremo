@@ -73,12 +73,6 @@ export default function MovieCard({
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-white drop-shadow">
             {movie.title}
           </h3>
-          {movie.sourceName && (
-            <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-white/45">
-              <span className="h-1 w-1 rounded-full bg-brand-400" />
-              {movie.sourceName}
-            </span>
-          )}
         </div>
       </div>
     </motion.button>
