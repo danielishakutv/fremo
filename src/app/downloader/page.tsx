@@ -13,11 +13,29 @@ import {
   ClockIcon,
   CheckIcon,
   AlertIcon,
+  SparkIcon,
 } from "@/components/icons";
 
-const PLATFORMS = ["YouTube", "TikTok", "Facebook", "Instagram", "X", "Vimeo", "Reddit"];
+const PLATFORMS: { name: string; soon?: boolean }[] = [
+  { name: "TikTok" },
+  { name: "Facebook" },
+  { name: "Instagram" },
+  { name: "X" },
+  { name: "Vimeo" },
+  { name: "Reddit" },
+  { name: "YouTube", soon: true },
+];
 
-type Fetch = "idle" | "loading" | "ready" | "error";
+function isYouTubeLink(link: string): boolean {
+  try {
+    const h = new URL(link).hostname.toLowerCase();
+    return /(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)$/.test(h);
+  } catch {
+    return false;
+  }
+}
+
+type Fetch = "idle" | "loading" | "ready" | "error" | "comingsoon";
 type DlState = "starting" | "downloading" | "processing" | "ready" | "done" | "error";
 interface Dl {
   mode: "video" | "audio";
@@ -56,15 +74,22 @@ export default function DownloaderPage() {
     const link = url.trim();
     if (!link) return;
     if (poll.current) clearInterval(poll.current);
-    setFetchState("loading");
     setInfo(null);
     setErr("");
     setDl(null);
     setHeight(null);
+    // YouTube is temporarily disabled — show the "coming soon" card instantly.
+    if (isYouTubeLink(link)) {
+      setFetchState("comingsoon");
+      return;
+    }
+    setFetchState("loading");
     try {
       const res = await apiFetch(`/api/grab/info?url=${encodeURIComponent(link)}`);
       const data = await res.json();
-      if (data.info) {
+      if (data.comingSoon) {
+        setFetchState("comingsoon");
+      } else if (data.info) {
         setInfo(data.info);
         setHeight(data.info.heights?.[0] ?? null);
         setFetchState("ready");
@@ -161,8 +186,20 @@ export default function DownloaderPage() {
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-1.5">
               {PLATFORMS.map((p) => (
-                <span key={p} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/50">
-                  {p}
+                <span
+                  key={p.name}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] ${
+                    p.soon
+                      ? "border-white/5 bg-white/[0.03] text-white/30"
+                      : "border-white/10 bg-white/5 text-white/50"
+                  }`}
+                >
+                  {p.name}
+                  {p.soon && (
+                    <span className="rounded-full bg-brand-500/20 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-brand-300">
+                      Soon
+                    </span>
+                  )}
                 </span>
               ))}
             </div>
@@ -222,6 +259,21 @@ export default function DownloaderPage() {
                   className="flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-4">
                   <AlertIcon className="mt-0.5 h-5 w-5 flex-none text-amber-400" />
                   <p className="text-sm text-amber-100/90">{err}</p>
+                </motion.div>
+              )}
+
+              {fetchState === "comingsoon" && (
+                <motion.div key="soon" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="glass overflow-hidden rounded-2xl p-6 text-center">
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/15 text-brand-300">
+                    <SparkIcon className="h-6 w-6" />
+                  </span>
+                  <h3 className="mt-4 text-lg font-bold text-white">YouTube is coming soon</h3>
+                  <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-white/55">
+                    We&apos;re polishing YouTube support to make it fast and reliable. In the
+                    meantime, Fremo grabs <span className="text-white/80">TikTok, Facebook,
+                    Instagram, X, Vimeo, Reddit</span> and 1000+ other sites — paste one of those.
+                  </p>
                 </motion.div>
               )}
 

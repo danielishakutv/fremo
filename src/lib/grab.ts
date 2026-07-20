@@ -38,6 +38,17 @@ function isPrivateIp(ip: string): boolean {
   return h === "::1" || h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe80") || h === "::";
 }
 
+// YouTube is gated off for now (needs cookies/PO-token/JS-runtime to be reliable
+// from a datacenter IP). Flip on later with GRAB_YOUTUBE=on once it's solid.
+export const YOUTUBE_ENABLED = process.env.GRAB_YOUTUBE === "on";
+const YT_DOMAINS = ["youtube.com", "youtu.be", "youtube-nocookie.com"];
+export function isYouTubeUrl(u: URL): boolean {
+  const h = u.hostname.toLowerCase();
+  return YT_DOMAINS.some((d) => h === d || h.endsWith("." + d));
+}
+export const YOUTUBE_SOON_MSG =
+  "YouTube support is coming soon. For now Fremo grabs TikTok, Facebook, Instagram, X, Vimeo, Reddit and 1000+ other sites.";
+
 /** Validate a user-supplied media URL: http(s) only, not pointing at a private host. */
 export async function assertPublicUrl(raw: string): Promise<URL> {
   let u: URL;

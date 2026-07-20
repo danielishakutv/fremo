@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { assertPublicUrl, fetchInfo } from "@/lib/grab";
+import { assertPublicUrl, fetchInfo, isYouTubeUrl, YOUTUBE_ENABLED, YOUTUBE_SOON_MSG } from "@/lib/grab";
 import { guard, clampParam } from "@/lib/security";
 import { recordEvent } from "@/lib/analytics";
 
@@ -14,10 +14,15 @@ export async function GET(req: NextRequest) {
   const url = clampParam(req.nextUrl.searchParams.get("url"), 600);
   if (!url) return NextResponse.json({ error: "url required" }, { status: 400 });
 
+  let u: URL;
   try {
-    await assertPublicUrl(url);
+    u = await assertPublicUrl(url);
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Invalid link." }, { status: 400 });
+  }
+
+  if (isYouTubeUrl(u) && !YOUTUBE_ENABLED) {
+    return NextResponse.json({ error: YOUTUBE_SOON_MSG, comingSoon: true });
   }
 
   try {
