@@ -27,6 +27,9 @@ yarn-error.log*
 # persistent analytics store
 /.data
 
+# server secrets (e.g. YouTube cookies for yt-dlp)
+/.secrets
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

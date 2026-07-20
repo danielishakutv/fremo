@@ -8,11 +8,13 @@ import { promises as dns } from "dns";
 const YTDLP = process.env.YTDLP_BIN || "yt-dlp";
 // Optional YouTube auth: a Netscape cookies.txt exported from a logged-in
 // browser. Without it, YouTube blocks datacenter IPs ("confirm you're not a bot").
-const COOKIES = process.env.YTDLP_COOKIES || "";
+// Auto-detected at <cwd>/.secrets/youtube_cookies.txt, or override via env.
+const COOKIES = process.env.YTDLP_COOKIES || join(process.cwd(), ".secrets", "youtube_cookies.txt");
 const MAX_FILESIZE = process.env.GRAB_MAX_FILESIZE || "3G";
 
 function baseArgs(): string[] {
   const a = ["--no-playlist", "--no-warnings", "--restrict-filenames"];
+  // existsSync is checked per-call so cookies can be added without a restart.
   if (COOKIES && existsSync(COOKIES)) a.push("--cookies", COOKIES);
   return a;
 }
