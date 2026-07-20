@@ -7,7 +7,7 @@ const DATA_DIR = path.join(process.cwd(), ".data");
 const FILE = path.join(DATA_DIR, "analytics.json");
 const SALT = process.env.FREMO_SECRET || "fremo-analytics-salt-v1";
 
-type EventKey = "views" | "searches" | "downloads" | "subtitles";
+type EventKey = "views" | "searches" | "downloads" | "subtitles" | "grabs";
 
 interface Store {
   totals: Record<EventKey, number>;
@@ -18,7 +18,7 @@ interface Store {
 
 function emptyStore(): Store {
   return {
-    totals: { views: 0, searches: 0, downloads: 0, subtitles: 0 },
+    totals: { views: 0, searches: 0, downloads: 0, subtitles: 0, grabs: 0 },
     byDay: {},
     knownVisitors: [],
     since: new Date().toISOString().slice(0, 10),
@@ -130,6 +130,7 @@ export function getStats() {
     searches: store.totals.searches,
     downloads: store.totals.downloads,
     subtitles: store.totals.subtitles,
+    grabs: store.totals.grabs,
     today: {
       views: todayTotals.views || 0,
       downloads: todayTotals.downloads || 0,

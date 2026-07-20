@@ -8,7 +8,7 @@ import MovieGrid from "@/components/MovieGrid";
 import MovieModal from "@/components/MovieModal";
 import AnalyticsFooter from "@/components/AnalyticsFooter";
 import { GridSkeleton } from "@/components/Skeleton";
-import { FilmIcon, SparkIcon, PlayIcon } from "@/components/icons";
+import { FilmIcon, VideoIcon, PlayIcon } from "@/components/icons";
 import { apiFetch } from "@/lib/api";
 
 const CATEGORIES = [
@@ -146,12 +146,10 @@ export default function Home() {
             </span>
           </a>
           <a
-            href="https://www.net9ja.tv"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 transition hover:text-white sm:flex"
+            href="/downloader"
+            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-brand-400/40 hover:text-white"
           >
-            <SparkIcon className="h-3.5 w-3.5 text-gold" /> Fresh releases daily
+            <VideoIcon className="h-3.5 w-3.5 text-brand-400" /> Video Downloader
           </a>
         </div>
       </header>
