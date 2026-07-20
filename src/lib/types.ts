@@ -25,11 +25,25 @@ export interface MovieDetail extends Movie {
   description: string;
 }
 
+/** One downloadable item on a series page (an episode) or a quality variant. */
+export interface Episode {
+  /** Human label, e.g. "Episode 1" */
+  label: string;
+  /** file-host or SDM link to deep-resolve at click time */
+  page: string;
+  /** episode number, for ordering */
+  n?: number;
+}
+
 export interface DownloadResult {
   found: boolean;
   /** What the user asked us to resolve */
   query: string;
   matchedTitle?: string;
+  /** Set when the title has multiple episodes/parts to download. */
+  isSeries?: boolean;
+  /** The list of episodes when isSeries is true. */
+  episodes?: Episode[];
   /** dldownload sdm post page */
   sourcePage?: string;
   /** wildshare file page — where the user completes the download (fallback) */

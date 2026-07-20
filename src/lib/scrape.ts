@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import type { Movie, MovieDetail, DownloadResult } from "./types";
+import type { Movie, MovieDetail, DownloadResult, Episode } from "./types";
 import { ENABLED_SOURCES, isSourceHost, sourceForUrl, type Source } from "./sources";
 
 export const NET9JA = "https://www.net9ja.tv";
@@ -356,11 +356,47 @@ function isSdmUrl(url: string): boolean {
   }
 }
 
+/** Parse an episode number from a label and/or filename ("Episode 3", "S01E03"). */
+function episodeNumber(text: string, url: string): number | undefined {
+  const t = `${text} ${decodeURIComponent(url)}`;
+  let m = t.match(/S\d{1,2}\s*E(\d{1,3})/i);
+  if (m) return parseInt(m[1], 10);
+  m = t.match(/\bepisode\s*[.\-_ ]?(\d{1,3})\b/i);
+  if (m) return parseInt(m[1], 10);
+  m = t.match(/\bE[Pp]?\s*[.\-_ ]?(\d{1,3})\b/);
+  if (m) return parseInt(m[1], 10);
+  return undefined;
+}
+
+/** A short, human label for a download link (episode number, quality, or its text). */
+function downloadLabel(text: string, url: string, idx: number): string {
+  const clean = (text || "").replace(/\s+/g, " ").trim();
+  const n = episodeNumber(clean, url);
+  if (n != null) return `Episode ${n}`;
+  if (clean && !/^(download( now)?|watch|stream|get link|click here|mirror)$/i.test(clean) && clean.length <= 40)
+    return clean;
+  const q = (decodeURIComponent(url).match(/\b(2160p|1080p|720p|480p|4k)\b/i) || [])[1];
+  if (q) return q.toUpperCase();
+  return `Part ${idx + 1}`;
+}
+
+/** All download links (file-host or SDM) on a detail page, in document order, de-duped. */
+function collectDownloadLinks($: cheerio.CheerioAPI): Array<{ href: string; text: string }> {
+  const out: Array<{ href: string; text: string }> = [];
+  const seen = new Set<string>();
+  $("a[href]").each((_, a) => {
+    const href = ($(a).attr("href") || "").trim();
+    if (!href || seen.has(href)) return;
+    if (!isFileHostUrl(href) && !isSdmUrl(href)) return;
+    seen.add(href);
+    out.push({ href, text: $(a).text() });
+  });
+  return out;
+}
+
 /**
- * Find the best download link on a movie's OWN source detail page.
- * Prefers a direct file-host link (net9jaseries), else an SDM page
- * (net9ja/thenetnaija -> dldownload, naijaprey -> np-downloader).
- * Returns the link URL, or null if the movie has no resolvable download.
+ * Find the best (primary) download link on a movie's OWN source detail page.
+ * Used to confirm downloadability for the feed. Returns null if none.
  */
 export async function resolveFromDetail(detailUrl: string): Promise<string | null> {
   let u: URL;
@@ -373,18 +409,40 @@ export async function resolveFromDetail(detailUrl: string): Promise<string | nul
 
   const res = await fetchHtml(detailUrl, { timeout: 14000 });
   if (!res.ok) return null;
-  const $ = cheerio.load(await res.text());
+  const links = collectDownloadLinks(cheerio.load(await res.text()));
+  const file = links.find((l) => isFileHostUrl(l.href));
+  return (file || links[0])?.href || null;
+}
 
-  const fileLinks: string[] = [];
-  const sdmLinks: string[] = [];
-  $("a[href]").each((_, a) => {
-    const href = ($(a).attr("href") || "").trim();
-    if (!href) return;
-    if (isFileHostUrl(href)) fileLinks.push(href);
-    else if (isSdmUrl(href)) sdmLinks.push(href);
-  });
+/**
+ * Enumerate every downloadable episode/part on a detail page.
+ * Prefers file-host links (episodes); falls back to SDM links when there are none.
+ */
+export async function resolveEpisodeList(detailUrl: string): Promise<Episode[]> {
+  let u: URL;
+  try {
+    u = new URL(detailUrl);
+  } catch {
+    return [];
+  }
+  if (!isSourceHost(u.hostname)) return [];
 
-  return fileLinks[0] || sdmLinks[0] || null;
+  const res = await fetchHtml(detailUrl, { timeout: 14000 });
+  if (!res.ok) return [];
+  const links = collectDownloadLinks(cheerio.load(await res.text()));
+
+  // File-host links are the real per-episode files; SDM links are usually a
+  // single mirror. If any file-host links exist, use only those.
+  const fileOnly = links.filter((l) => isFileHostUrl(l.href));
+  const chosen = fileOnly.length ? fileOnly : links;
+
+  const eps: Episode[] = chosen.map((l, i) => ({
+    label: downloadLabel(l.text, l.href, i),
+    page: l.href,
+    n: episodeNumber(l.text, l.href),
+  }));
+  if (eps.length > 1 && eps.every((e) => e.n != null)) eps.sort((a, b) => a.n! - b.n!);
+  return eps;
 }
 
 /**
@@ -529,11 +587,19 @@ export async function resolveDeep(downloadPage: string): Promise<DownloadResult>
   }
 }
 
-/** Resolve straight from a movie's source detail page (find link, then deep-resolve). */
+/**
+ * Resolve straight from a movie's source detail page.
+ *  - 0 links  -> not found
+ *  - 1 link   -> deep-resolve to a streamable download (a movie)
+ *  - 2+ links -> return the episode/part list (each deep-resolves on click)
+ */
 export async function resolveFromDetailDeep(detailUrl: string): Promise<DownloadResult> {
-  const page = await resolveFromDetail(detailUrl);
-  if (!page) {
+  const eps = await resolveEpisodeList(detailUrl);
+  if (eps.length === 0) {
     return { found: false, query: detailUrl, message: "No download is available for this title." };
   }
-  return resolveDeep(page);
+  if (eps.length === 1) {
+    return resolveDeep(eps[0].page);
+  }
+  return { found: true, query: detailUrl, isSeries: true, episodes: eps };
 }
